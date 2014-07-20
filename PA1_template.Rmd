@@ -1,20 +1,72 @@
 # Reproducible Research: Peer Assessment 1
-
+ ```{r setoptions,echo=TRUE}
+  opts_chunk$set(echo=TRUE)
+ ```
 
 ## Loading and preprocessing the data
-
-
-
+ ```{r loaddata}
+  file<-read.csv("activity.csv", colClasses = c("numeric", "Date", "numeric"))
+ head(file)
+ ```
 ## What is mean total number of steps taken per day?
+ ```{r perday,warn=FALSE}        
+ file2<-file[complete.cases(file),]
+ library(data.table)
+ library(ggplot2)
+ dt<-data.table(file2)
+ per_day<-dt[, sum(steps), by="date"]
+ ggplot(per_day, aes(x=V1)) + geom_histogram()+xlab("steps")
+meanval<-mean(per_day$V1)
+medval<-median(per_day$V1)
+ ```
+ 
+The mean value of total number steps taken per day is `r meanval`.
 
-
-
+The median value of total number steps taken per day is `r medval`.
 ## What is the average daily activity pattern?
+ ```{r daily}
+ library(data.table)
+ dt<-data.table(file2)
 
-
+ per_step<-dt[, sum(steps)/61, by="interval"] 
+ plot(per_step$interval,per_step$V1,type="l",xlab="interval",ylab="Average nubmer    of  steps")
+ max_interval<-per_step[order(per_step$V1,decreasing=T),][1]
+  ```
+  5-minut interval   with maximum average across all the days is `r max_interval`
 
 ## Imputing missing values
+ ```{r misvalue}
+  sumNA<-sapply(file, function(x) sum(is.na(x)))
+  allNA<-sumNA[1]+sumNA[2]+sumNA[3]
+  allNA
+  dtNA<-file[is.na(file),]
+  
+  new<-merge(dtNA,per_step)
+  new$steps<-new$V1
+  new$V1<-NULL
+  dt<-data.table(file2)
+  dt<-rbind(dt,new,use.names=TRUE)
+  dt2<-dt
+  
+  new_per_day<-dt[, sum(steps), by="date"]
+  hist(new_per_day$V1,n=61,main = "New histogram of the total numbers of steps ", xlab      ="steps per day")
+  newmeanval<-mean(new_per_day$V1) 
+  newmedval<-median(new_per_day$V1)
+   
+ ```
+ New mean value of total number steps taken per day is `r newmeanval`.
 
+ New median value of total number steps taken per day is `r newmedval`.
 
-
+This values differs from previous. Inputing missing values impact is very strong.
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r weekend}
+dateDF<- transform(dt2, weekend=as.POSIXlt(date, format='%Y/%m/%d')$wday %in% c(0, 6))
+dateDF$dayOfWeek <- "weekday"
+dateDF[dateDF$weekend==TRUE,"dayOfWeek"]<-"weekend"
+
+dateDF$dayOfWeek <-as.factor(dateDF$dayOfWeek)
+library(lattice)
+xyplot(dateDF$steps~dateDF$interval|dateDF$dayOfWeek, type='l',           
+   ylab="Number of steps", xlab="Interval")
+```
